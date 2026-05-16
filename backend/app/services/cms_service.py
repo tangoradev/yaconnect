@@ -401,23 +401,39 @@ def upload_media(db: Session, actor: User, raw_bytes: bytes, original_filename: 
 def init_defaults(db: Session, actor: User) -> dict:
     created = {"categories": 0, "tags": 0, "pages": 0}
 
-    if db.query(CmsCategory).count() == 0:
-        for name in ["Communiqués", "Actualités", "Opportunités"]:
-            create_category(db, name=name)
+    categories = [
+        ("Communiqués", "communiques"),
+        ("Événements", "evenements"),
+        ("Opportunités", "opportunites"),
+    ]
+    for name, slug in categories:
+        exists = db.query(CmsCategory).filter(CmsCategory.slug == slug).first()
+        if not exists:
+            create_category(db, name=name, slug=slug)
             created["categories"] += 1
 
-    if db.query(CmsTag).count() == 0:
-        for name in ["Climat", "Biodiversité", "Paix", "Cohésion sociale"]:
-            create_tag(db, name=name)
+    tags = [
+        ("Climat", "climat"),
+        ("Biodiversité", "biodiversite"),
+        ("Paix", "paix"),
+        ("Cohésion sociale", "cohesion-sociale"),
+    ]
+    for name, slug in tags:
+        exists = db.query(CmsTag).filter(CmsTag.slug == slug).first()
+        if not exists:
+            create_tag(db, name=name, slug=slug)
             created["tags"] += 1
 
-    if db.query(CmsPage).count() == 0:
-        pages = [
-            ("a-propos", "À propos", "## À propos\n\nContenu à compléter."),
-            ("contact", "Contact", "## Contact\n\nContenu à compléter."),
-            ("faq", "FAQ", "## FAQ\n\nContenu à compléter."),
-        ]
-        for slug, title, content in pages:
+    pages = [
+        ("a-propos", "À propos", "## À propos\n\nContenu à compléter."),
+        ("mission", "Mission", "## Mission\n\nContenu à compléter."),
+        ("contact", "Contact", "## Contact\n\nContenu à compléter."),
+        ("faq", "FAQ", "## FAQ\n\nContenu à compléter."),
+        ("mentions-legales", "Mentions légales", "## Mentions légales\n\nContenu à compléter."),
+    ]
+    for slug, title, content in pages:
+        exists = db.query(CmsPage).filter(CmsPage.slug == slug).first()
+        if not exists:
             create_page(
                 db,
                 CmsPageCreate(slug=slug, title=title, content=content, status=CmsStatus.DRAFT),
@@ -426,4 +442,3 @@ def init_defaults(db: Session, actor: User) -> dict:
             created["pages"] += 1
 
     return created
-

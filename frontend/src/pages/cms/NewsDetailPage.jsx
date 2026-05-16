@@ -3,6 +3,19 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import api, { API_ORIGIN } from '../../services/api';
 
+const applySeo = (title, description) => {
+  if (title) document.title = title;
+  if (description !== undefined) {
+    let el = document.querySelector('meta[name="description"]');
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute('name', 'description');
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', description || '');
+  }
+};
+
 const NewsDetailPage = () => {
   const { slug } = useParams();
   const [item, setItem] = useState(null);
@@ -31,6 +44,11 @@ const NewsDetailPage = () => {
     };
     load();
   }, [slug]);
+
+  useEffect(() => {
+    if (!item) return;
+    applySeo(item.meta_title || item.title, item.meta_description || item.excerpt || '');
+  }, [item]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -83,4 +101,3 @@ const NewsDetailPage = () => {
 };
 
 export default NewsDetailPage;
-

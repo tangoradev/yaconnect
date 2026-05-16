@@ -4,3 +4,7 @@ Configuration de la base de données PostgreSQL
 - DB_PASSWORD : Prodada10
 - DB_HOST : localhost
 - DB_PORT : 5432
+
+Compte superAdmin:
+- username: soungalo.tangora@undp.org
+- mot de passe: Pnud2016

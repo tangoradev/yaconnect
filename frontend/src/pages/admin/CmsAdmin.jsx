@@ -49,6 +49,8 @@ const CmsAdmin = () => {
     tag_ids: [],
     excerpt: '',
     cover_image_url: '',
+    meta_title: '',
+    meta_description: '',
     content: '',
   });
 
@@ -59,10 +61,21 @@ const CmsAdmin = () => {
     status: 'DRAFT',
     published_at: '',
     excerpt: '',
+    meta_title: '',
+    meta_description: '',
     content: '',
   });
 
   const [revisions, setRevisions] = useState([]);
+  const [postPreview, setPostPreview] = useState(false);
+  const [pagePreview, setPagePreview] = useState(false);
+
+  const postCoverPreviewUrl = useMemo(() => {
+    const v = postForm.cover_image_url || '';
+    if (!v) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    return `${API_ORIGIN}${v}`;
+  }, [postForm.cover_image_url]);
 
   const selectedEntity = useMemo(() => {
     if (tab === 'posts' && selectedPostId) return { type: 'POST', id: selectedPostId };
@@ -135,6 +148,8 @@ const CmsAdmin = () => {
       tag_ids: p.tag_ids || [],
       excerpt: p.excerpt || '',
       cover_image_url: p.cover_image_url || '',
+      meta_title: p.meta_title || '',
+      meta_description: p.meta_description || '',
       content: p.content || '',
     });
   }, [selectedPostId, posts]);
@@ -150,6 +165,8 @@ const CmsAdmin = () => {
       status: p.status || 'DRAFT',
       published_at: toLocalInputValue(p.published_at),
       excerpt: p.excerpt || '',
+      meta_title: p.meta_title || '',
+      meta_description: p.meta_description || '',
       content: p.content || '',
     });
   }, [selectedPageId, pages]);
@@ -166,6 +183,8 @@ const CmsAdmin = () => {
       tag_ids: [],
       excerpt: '',
       cover_image_url: '',
+      meta_title: '',
+      meta_description: '',
       content: '',
     });
   };
@@ -179,6 +198,8 @@ const CmsAdmin = () => {
       status: 'DRAFT',
       published_at: '',
       excerpt: '',
+      meta_title: '',
+      meta_description: '',
       content: '',
     });
   };
@@ -197,6 +218,8 @@ const CmsAdmin = () => {
         tag_ids: postForm.tag_ids,
         excerpt: postForm.excerpt || null,
         cover_image_url: postForm.cover_image_url || null,
+        meta_title: postForm.meta_title || null,
+        meta_description: postForm.meta_description || null,
         content: postForm.content || '',
       };
       let res;
@@ -245,6 +268,8 @@ const CmsAdmin = () => {
         status: pageForm.status,
         published_at: fromLocalInputValue(pageForm.published_at),
         excerpt: pageForm.excerpt || null,
+        meta_title: pageForm.meta_title || null,
+        meta_description: pageForm.meta_description || null,
         content: pageForm.content || '',
       };
       let res;
@@ -368,7 +393,7 @@ const CmsAdmin = () => {
     }
   };
 
-  const uploadImage = async (file) => {
+  const uploadMedia = async (file) => {
     if (!file) return;
     setBusy(true);
     setError('');
@@ -376,13 +401,22 @@ const CmsAdmin = () => {
     try {
       const data = new FormData();
       data.append('file', file);
-      await api.post('/admin/cms/media', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/admin/cms/media', data, { headers: { 'Content-Type': 'multipart/form-data' } });
       await loadMedia();
       setNotice('Image envoyée');
+      return res.data;
     } catch (e) {
       setError(e?.response?.data?.detail || "Impossible d’envoyer l’image");
+      return null;
     } finally {
       setBusy(false);
+    }
+  };
+
+  const uploadCoverImage = async (file) => {
+    const m = await uploadMedia(file);
+    if (m?.file_url) {
+      setPostForm((f) => ({ ...f, cover_image_url: m.file_url }));
     }
   };
 
@@ -408,6 +442,18 @@ const CmsAdmin = () => {
     if (!fileUrl) return '';
     if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) return fileUrl;
     return `${API_ORIGIN}${fileUrl}`;
+  };
+
+  const copyMediaPath = async (fileUrl) => {
+    try {
+      if (!fileUrl) return;
+      await navigator.clipboard.writeText(fileUrl);
+      setNotice('URL copiée');
+      setError('');
+    } catch {
+      setError("Impossible de copier l’URL");
+      setNotice('');
+    }
   };
 
   return (
@@ -588,12 +634,53 @@ const CmsAdmin = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Image couverture</label>
-                    <input
-                      value={postForm.cover_image_url}
-                      onChange={(e) => setPostForm((f) => ({ ...f, cover_image_url: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
-                      placeholder="/static/cms/…"
-                    />
+                    <div className="flex items-center gap-2">
+                      <label className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium cursor-pointer border ${
+                        busy ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                      }`}>
+                        <Upload size={18} className="mr-2" />
+                        Importer
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          className="hidden"
+                          onChange={(e) => uploadCoverImage(e.target.files?.[0])}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={busy || !postForm.cover_image_url}
+                        onClick={() => setPostForm((f) => ({ ...f, cover_image_url: '' }))}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          busy || !postForm.cover_image_url ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                        }`}
+                      >
+                        Retirer
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!postForm.cover_image_url}
+                        onClick={() => copyMediaPath(postForm.cover_image_url)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          !postForm.cover_image_url ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                        }`}
+                      >
+                        Copier URL
+                      </button>
+                    </div>
+                    {postForm.cover_image_url && (
+                      <div className="mt-2">
+                        <div className="text-[11px] text-gray-600 truncate">{postForm.cover_image_url}</div>
+                        {postCoverPreviewUrl && (
+                          <img
+                            src={postCoverPreviewUrl}
+                            alt="Couverture"
+                            className="mt-2 w-full h-32 object-cover rounded-lg border border-gray-200"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -608,13 +695,48 @@ const CmsAdmin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Contenu</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta title</label>
+                  <input
+                    value={postForm.meta_title}
+                    onChange={(e) => setPostForm((f) => ({ ...f, meta_title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    placeholder="optionnel"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta description</label>
+                  <textarea
+                    value={postForm.meta_description}
+                    onChange={(e) => setPostForm((f) => ({ ...f, meta_description: e.target.value }))}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    placeholder="optionnel"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700">Contenu</label>
+                    <button
+                      type="button"
+                      onClick={() => setPostPreview((v) => !v)}
+                      className="text-xs font-medium text-gray-600 hover:text-brand-orange"
+                    >
+                      {postPreview ? 'Masquer aperçu' : 'Aperçu'}
+                    </button>
+                  </div>
                   <textarea
                     value={postForm.content}
                     onChange={(e) => setPostForm((f) => ({ ...f, content: e.target.value }))}
                     rows={12}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange font-mono text-sm"
                   />
+                  {postPreview && (
+                    <div className="mt-3 border border-gray-200 rounded-lg p-4 bg-gray-50 text-gray-800 whitespace-pre-wrap leading-7">
+                      {postForm.content || ''}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -798,13 +920,48 @@ const CmsAdmin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Contenu</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta title</label>
+                  <input
+                    value={pageForm.meta_title}
+                    onChange={(e) => setPageForm((f) => ({ ...f, meta_title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    placeholder="optionnel"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Meta description</label>
+                  <textarea
+                    value={pageForm.meta_description}
+                    onChange={(e) => setPageForm((f) => ({ ...f, meta_description: e.target.value }))}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                    placeholder="optionnel"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-gray-700">Contenu</label>
+                    <button
+                      type="button"
+                      onClick={() => setPagePreview((v) => !v)}
+                      className="text-xs font-medium text-gray-600 hover:text-brand-orange"
+                    >
+                      {pagePreview ? 'Masquer aperçu' : 'Aperçu'}
+                    </button>
+                  </div>
                   <textarea
                     value={pageForm.content}
                     onChange={(e) => setPageForm((f) => ({ ...f, content: e.target.value }))}
                     rows={14}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange font-mono text-sm"
                   />
+                  {pagePreview && (
+                    <div className="mt-3 border border-gray-200 rounded-lg p-4 bg-gray-50 text-gray-800 whitespace-pre-wrap leading-7">
+                      {pageForm.content || ''}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -885,7 +1042,7 @@ const CmsAdmin = () => {
                   accept="image/*"
                   disabled={busy}
                   className="hidden"
-                  onChange={(e) => uploadImage(e.target.files?.[0])}
+                  onChange={(e) => uploadMedia(e.target.files?.[0])}
                 />
               </label>
             </div>
@@ -895,16 +1052,31 @@ const CmsAdmin = () => {
                 <div className="col-span-full text-sm text-gray-600">Aucun média</div>
               ) : (
                 media.map((m) => (
-                  <button
+                  <div
                     key={m.id}
-                    type="button"
-                    onClick={() => setPostForm((f) => ({ ...f, cover_image_url: m.file_url }))}
                     className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-sm hover:border-gray-300 transition-all bg-white"
-                    title="Cliquer pour définir comme image de couverture"
                   >
                     <img src={mediaUrl(m.file_url)} alt={m.id} className="w-full h-24 object-cover" />
-                    <div className="p-2 text-[11px] text-gray-600 truncate">{m.file_url}</div>
-                  </button>
+                    <div className="p-2">
+                      <div className="text-[11px] text-gray-600 truncate">{m.file_url}</div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPostForm((f) => ({ ...f, cover_image_url: m.file_url }))}
+                          className="flex-1 px-2 py-1 rounded-md text-[11px] font-medium bg-orange-50 text-brand-orange hover:bg-orange-100"
+                        >
+                          Couverture
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyMediaPath(m.file_url)}
+                          className="flex-1 px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        >
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -995,4 +1167,3 @@ const TaxoPanel = ({ title, items, onCreate, onDelete, busy }) => {
 };
 
 export default CmsAdmin;
-

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# GUIDE UTILISATEUR — MODULE “PROJECTS” (COMMUNITY INCUBATOR)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# GUIDE UTILISATEUR — MODULE “PROJECTS” (COMMUNITY INCUBATOR)
 
 ## 1) À quoi sert le module “Projects” ?
 

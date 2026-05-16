@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# GUIDE UTILISATEUR — MODULE ÉVÉNEMENTS (GRIN17)
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿# GUIDE UTILISATEUR — MODULE ÉVÉNEMENTS (GRIN17)
 
 ## 1) Objectif du module
 

@@ -6,6 +6,7 @@ from app.models.interest import Interest
 from app.models.user import User
 from app.core.security import get_password_hash
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -92,7 +93,10 @@ def seed_specific_superuser(db: Session):
     email = "soungalo.tangora@undp.org"
     user = db.query(User).filter(User.email == email).first()
     
-    password_hash = get_password_hash("Pr@dada10")
+    raw_password = os.getenv("SEED_SPECIFIC_SUPERUSER_PASSWORD")
+    if not raw_password:
+        raw_password = "Pr@dada10"
+    password_hash = get_password_hash(raw_password)
 
     if not user:
         user = User(

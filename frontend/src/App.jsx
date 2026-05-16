@@ -71,6 +71,7 @@ function App() {
             <Route path="/news" element={<NewsListPage />} />
             <Route path="/news/:slug" element={<NewsDetailPage />} />
             <Route path="/page/:slug" element={<CmsPage />} />
+            <Route path="/p/:slug" element={<CmsPage />} />
             
             {/* Forum Routes */}
             <Route path="/forum" element={<ForumLayout />}>
