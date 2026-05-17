@@ -1,11 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import { Search, Filter, MoreVertical, Edit, Trash2, Shield } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, Filter, Edit, Trash2 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const UsersAdmin = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [form, setForm] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    role_id: 4,
+    region_id: null,
+    is_active: true,
+    password: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -27,6 +42,68 @@ const UsersAdmin = () => {
     (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const isSuperAdmin = useMemo(() => currentUser?.role_id === 1, [currentUser?.role_id]);
+
+  const openEdit = (user) => {
+    setError('');
+    setSelectedUser(user);
+    setForm({
+      email: user.email || '',
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      role_id: user.role_id ?? 4,
+      region_id: user.region_id ?? null,
+      is_active: !!user.is_active,
+      password: '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+    setIsModalOpen(false);
+    setSelectedUser(null);
+    setError('');
+    setForm({
+      email: '',
+      first_name: '',
+      last_name: '',
+      role_id: 4,
+      region_id: null,
+      is_active: true,
+      password: '',
+    });
+  };
+
+  const handleSave = async () => {
+    if (!selectedUser) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload = {
+        email: form.email,
+        first_name: form.first_name || null,
+        last_name: form.last_name || null,
+        role_id: Number(form.role_id),
+        region_id: form.region_id === '' || form.region_id === null ? null : Number(form.region_id),
+        is_active: !!form.is_active,
+      };
+
+      const newPassword = (form.password || '').trim();
+      if (newPassword) {
+        payload.password = newPassword;
+      }
+
+      await api.put(`/admin/users/${selectedUser.id}`, payload);
+      await fetchUsers();
+      closeModal();
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Impossible d'enregistrer les modifications");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -119,7 +196,7 @@ const UsersAdmin = () => {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-brand-blue mx-2">
+                      <button className="text-gray-400 hover:text-brand-blue mx-2" onClick={() => openEdit(user)}>
                         <Edit size={18} />
                       </button>
                       <button className="text-gray-400 hover:text-red-600">
@@ -133,6 +210,110 @@ const UsersAdmin = () => {
           </table>
         </div>
       </div>
+
+      {isModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Modifier utilisateur</h2>
+              <p className="text-sm text-gray-500">{selectedUser.email}</p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {error && (
+                <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <input
+                    value={form.first_name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, first_name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <input
+                    value={form.last_name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, last_name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
+                  <select
+                    value={form.role_id}
+                    onChange={(e) => setForm((prev) => ({ ...prev, role_id: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                  >
+                    <option value={1}>SuperAdmin</option>
+                    <option value={2}>Admin</option>
+                    <option value={4}>Membre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select
+                    value={form.is_active ? 'active' : 'inactive'}
+                    onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.value === 'active' }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                  >
+                    <option value="active">Actif</option>
+                    <option value="inactive">Inactif</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  disabled={!isSuperAdmin}
+                  placeholder={isSuperAdmin ? 'Laisser vide pour ne pas changer' : 'Réservé SuperAdmin'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent ${!isSuperAdmin ? 'bg-gray-50 text-gray-400' : ''}`}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-2">
+              <button
+                onClick={closeModal}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-orange text-white hover:bg-brand-orange/90 disabled:opacity-60"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

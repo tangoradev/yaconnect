@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.database.session import get_db
-from app.core import dependencies
+from app.core import dependencies, security
 from app.models.user import User
 from app.models.role import Role
 from app.models.region import Region
@@ -64,6 +64,12 @@ def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     update_data = user_in.model_dump(exclude_unset=True)
+    password = update_data.pop("password", None)
+    if password is not None:
+        if not current_admin.role or current_admin.role.name != "SuperAdmin":
+            raise HTTPException(status_code=403, detail="Not allowed to change password")
+        user.password_hash = security.get_password_hash(password)
+
     for field, value in update_data.items():
         setattr(user, field, value)
     
